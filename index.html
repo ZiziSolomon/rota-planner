@@ -103,6 +103,48 @@ table.grid td.pinned { outline: 2px solid color-mix(in srgb, var(--accent) 45%, 
 .fixbtn { flex: none; font-size: 12px; padding: 4px 10px; }
 .ctext { font-size: 13px; }
 
+/* view switcher + the ported render.py views */
+.viewswitch { display: flex; gap: 6px; margin-bottom: 14px; }
+.viewswitch button { font-size: 13px; padding: 5px 12px; }
+.viewswitch button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.legend .chip { padding: 4px 12px; border-radius: 999px; font-weight: 650; font-size: 13px; }
+.minichip { display: inline-block; padding: 1px 7px; border-radius: 999px;
+            font-size: 11px; font-weight: 650; margin: 0 2px 2px 0; }
+.scroll { overflow-x: auto; background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; }
+.scroll table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 560px; }
+.scroll th, .scroll td { padding: 6px 9px; text-align: left; white-space: nowrap; }
+.scroll thead th { background: var(--card); font-size: 12px; border-bottom: 2px solid var(--line); }
+.scroll thead th.who { text-align: center; }
+.scroll tbody td, .scroll tbody th { border-bottom: 1px solid var(--line); }
+.scroll tbody th { font-weight: 600; color: var(--muted); font-size: 12.5px; }
+.scroll th.day { border-right: 1px solid var(--line); vertical-align: top;
+                 font-weight: 700; color: var(--fg); }
+.scroll .daynum { font-size: 16px; }
+.scroll tr.day-start > * { border-top: 2px solid var(--line); }
+.scroll td.cell { text-align: center; font-weight: 640; font-size: 12.5px;
+                  border-left: 1px solid var(--line); height: 34px; }
+.scroll td.free { color: var(--muted); font-weight: 500; text-align: center;
+                  background: color-mix(in srgb, var(--muted) 5%, transparent); }
+.scroll td.freelist { font-size: 11.5px; white-space: normal; max-width: 220px; }
+.scroll td.away { color: var(--muted); font-weight: 500; text-align: center;
+   background: repeating-linear-gradient(45deg, transparent, transparent 5px, var(--line) 5px, var(--line) 10px); }
+.split { display: flex; height: 100%; min-height: 26px; border-radius: 4px; overflow: hidden; }
+.split span { flex: 1; display: flex; align-items: center; justify-content: center;
+              font-size: 12px; font-weight: 650; padding: 2px 3px; }
+.cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+         margin-top: 16px; }
+.cards .card h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+                  letter-spacing: .05em; color: var(--muted); }
+.cards .card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cards .card td.num { text-align: right; font-variant-numeric: tabular-nums; padding-right: 8px; }
+.cards .card th { font-weight: 600; text-align: left; font-size: 12.5px; }
+.bar { display: inline-block; height: 9px; border-radius: 3px; background: var(--accent);
+       vertical-align: middle; }
+.note { color: var(--muted); font-size: 12px; margin: 9px 0 0; }
+
 /* cell editor popover */
 .pop { position: absolute; z-index: 50; background: var(--card); border: 1px solid var(--line);
        border-radius: 10px; padding: 11px; box-shadow: 0 8px 28px rgba(0,0,0,.28); width: 244px; }
@@ -140,7 +182,13 @@ table.mini td.num { text-align: right; font-variant-numeric: tabular-nums; font-
       <button id="clearlocks">Clear locks</button>
       <button id="reset">Reset to defaults</button>
       <button id="copy">Copy link</button>
+      <button id="export">Export &amp; print</button>
       <span id="status" class="status">Starting…</span>
+    </div>
+    <div class="viewswitch">
+      <button data-view="edit" class="on">Editable grid</button>
+      <button data-view="day">By day</button>
+      <button data-view="type">By person</button>
     </div>
     <div id="diag"></div>
     <div id="options"></div>
