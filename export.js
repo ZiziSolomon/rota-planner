@@ -8,8 +8,8 @@
  * eat a cartridge.
  * ========================================================================================== */
 
-import { dayView, typeView, statsHtml, legendHtml } from "./view.js";
-import { WEEKDAY } from "./model.js";
+import { dayView, typeView, statsHtml, legendHtml } from "./view.js?v=2";
+import { WEEKDAY } from "./model.js?v=2";
 
 const PRINT_CSS = `
 :root { --ink:#1b1b1f; --muted:#6b6b76; --line:#e3e3e8; --paper:#fff; --bg:#faf9fb; }
@@ -79,6 +79,12 @@ td.away { background:repeating-linear-gradient(45deg,#f0f0f3,#f0f0f3 5px,#e7e7ec
 }
 `;
 
+/* The views mark cells as editable for the live page; an exported file has no JS behind
+ * those hooks, so they are stripped rather than shipped as dead attributes. */
+const inert = (html) => html
+  .replace(/ data-(edit|key|day|period)="[^"]*"/g, "")
+  .replace(/ class="cell editable"/g, ' class="cell"');
+
 export function exportHtml(ctx, opt, cfg, meta = {}) {
   const when = new Date().toLocaleDateString("en-GB",
     { day: "numeric", month: "long", year: "numeric" });
@@ -96,10 +102,10 @@ export function exportHtml(ctx, opt, cfg, meta = {}) {
 ${legendHtml(ctx.adults)}
 
 <h2>The rota</h2>
-${dayView(ctx, opt.sched, cfg)}
+${inert(dayView(ctx, opt.sched, cfg))}
 
 <h2>By person</h2>
-${typeView(ctx, opt.sched, cfg)}
+${inert(typeView(ctx, opt.sched, cfg))}
 
 <h2>How it balances</h2>
 ${statsHtml(ctx, opt, cfg)}

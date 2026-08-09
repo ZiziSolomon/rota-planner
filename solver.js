@@ -14,7 +14,7 @@
  * rota this size that is consistently as good as, or within a point of, the Python result.
  * ========================================================================================== */
 
-import { GROUP_BLOCK, score, hardConstraints } from "./model.js";
+import { GROUP_BLOCK, score, hardConstraints } from "./model.js?v=2";
 
 function mulberry32(seed) {
   return function () {

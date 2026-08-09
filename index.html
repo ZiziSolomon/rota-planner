@@ -126,6 +126,8 @@ table.grid td.pinned { outline: 2px solid color-mix(in srgb, var(--accent) 45%, 
 .scroll tr.day-start > * { border-top: 2px solid var(--line); }
 .scroll td.cell { text-align: center; font-weight: 640; font-size: 12.5px;
                   border-left: 1px solid var(--line); height: 34px; }
+.scroll td.editable { cursor: pointer; }
+.scroll td.editable:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
 .scroll td.free { color: var(--muted); font-weight: 500; text-align: center;
                   background: color-mix(in srgb, var(--muted) 5%, transparent); }
 .scroll td.freelist { font-size: 11.5px; white-space: normal; max-width: 220px; }
@@ -201,6 +203,9 @@ table.mini td.num { text-align: right; font-variant-numeric: tabular-nums; font-
   </aside>
 </main>
 
-<script type="module" src="./app.js"></script>
+<!-- ?v is bumped whenever the JS changes. Static file servers (and file:// itself) send no
+     cache headers, so ES modules otherwise stay cached across reloads and you keep seeing
+     an old page after an update. -->
+<script type="module" src="./app.js?v=2"></script>
 </body>
 </html>

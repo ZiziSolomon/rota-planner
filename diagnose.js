@@ -10,9 +10,9 @@
  * forbids). Dropping one pin at a time was the only way to see which one was at fault.
  * ========================================================================================== */
 
-import { RULES, buildContext, SHAPES, WEEKDAY, label as nameOf } from "./model.js";
-import { solve, violations } from "./solver.js";
-import { hardConstraints } from "./model.js";
+import { RULES, buildContext, SHAPES, WEEKDAY, label as nameOf } from "./model.js?v=2";
+import { solve, violations } from "./solver.js?v=2";
+import { hardConstraints } from "./model.js?v=2";
 
 /* "11|b1619" -> "Tuesday 11th, 16-19" - the diagnostics are read by people, not machines. */
 function prettySlot(cfg, key) {

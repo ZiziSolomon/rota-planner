@@ -11,7 +11,7 @@
  *   - two-tone diagonal stripes for each couple's bar
  * ========================================================================================== */
 
-import { COLOURS, WEEKDAY, GROUP_BLOCK, SHAPES, label, BID_VALUE } from "./model.js";
+import { COLOURS, WEEKDAY, GROUP_BLOCK, SHAPES, label, BID_VALUE } from "./model.js?v=2";
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -104,8 +104,11 @@ export function dayView(ctx, sched, cfg) {
         const cs = cookSpanStarting(ctx, sched, d, p);
         if (cs) {
           const [who, len] = cs;
-          for (const b of Object.values(ctx.cookSpans).find((bs) => bs[0] === p) || []) covered.add(b);
-          cells.push(`<td class="cell" style="${swatch(who)}" rowspan="${len}">${esc(label(who))}</td>`);
+          const spanName = Object.keys(ctx.cookSpans).find((s) => ctx.cookSpans[s][0] === p);
+          for (const b of ctx.cookSpans[spanName] || []) covered.add(b);
+          cells.push(`<td class="cell editable" style="${swatch(who)}" rowspan="${len}"` +
+                     ` data-edit="cook" data-key="${d}|${spanName}" data-day="${d}" data-period="${p}">` +
+                     `${esc(label(who))}</td>`);
         } else {
           cells.push(`<td class="free">&mdash;</td>`);
         }
@@ -116,8 +119,10 @@ export function dayView(ctx, sched, cfg) {
         cells.push(`<td class="free">&mdash;</td>`);
       } else {
         const held = sched.cc[`${d}|${p}`] || [];
+        const ed = p === GROUP_BLOCK ? ""
+          : ` data-edit="cc" data-key="${d}|${p}" data-day="${d}" data-period="${p}"`;
         cells.push(held.length
-          ? `<td class="cell">${splitCell(held, order)}</td>`
+          ? `<td class="cell${ed ? " editable" : ""}"${ed}>${splitCell(held, order)}</td>`
           : `<td class="free">&mdash;</td>`);
       }
 
@@ -171,14 +176,22 @@ export function typeView(ctx, sched, cfg) {
       cells.push(`<th>${esc(shape.labels[p] || p)}</th>`);
       for (const a of order) {
         if (!ctx.present(a, d, p)) { cells.push(`<td class="away">away</td>`); continue; }
-        let role = null;
-        if ((sched.cc[`${d}|${p}`] || []).includes(a)) role = p === GROUP_BLOCK ? "All in" : "Childcare";
+        let role = null, kind = null, key = `${d}|${p}`;
+        if ((sched.cc[`${d}|${p}`] || []).includes(a)) {
+          role = p === GROUP_BLOCK ? "All in" : "Childcare";
+          if (p !== GROUP_BLOCK) kind = "cc";
+        }
         for (const [span, bs] of Object.entries(ctx.cookSpans)) {
-          if (bs.includes(p) && sched.cook[`${d}|${span}`] === a) role = "Cooking";
+          if (bs.includes(p) && sched.cook[`${d}|${span}`] === a) {
+            role = "Cooking"; kind = "cook"; key = `${d}|${span}`;
+          }
         }
         if (p === "night" && sched.sober[d] === a) role = "Sober";
+        // Childcare and cooking cells stay editable here, exactly as in the grid view -
+        // the by-person table is a different way of reading the rota, not a read-only one.
+        const editable = kind ? ` data-edit="${kind}" data-key="${key}" data-day="${d}" data-period="${p}"` : "";
         cells.push(role
-          ? `<td class="cell" style="${swatch(a)}">${esc(role)}</td>`
+          ? `<td class="cell${kind ? " editable" : ""}" style="${swatch(a)}"${editable}>${esc(role)}</td>`
           : `<td class="free">free</td>`);
       }
       out.push(`<tr${first ? ' class="day-start"' : ""}>${cells.join("")}</tr>`);

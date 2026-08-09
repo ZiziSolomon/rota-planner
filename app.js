@@ -4,10 +4,10 @@
  * URL hash, so a rota you like is a link you can send.
  * ========================================================================================== */
 
-import { RULES, WEEKDAY, COLOURS, label, GROUP_BLOCK, SHAPES, buildContext, BID_VALUE } from "./model.js";
-import { defaultConfig, encode, decode } from "./config.js";
-import { dayView, typeView, statsHtml, legendHtml, rainbow } from "./view.js";
-import { exportHtml } from "./export.js";
+import { RULES, WEEKDAY, COLOURS, label, GROUP_BLOCK, SHAPES, buildContext, BID_VALUE } from "./model.js?v=2";
+import { defaultConfig, encode, decode } from "./config.js?v=2";
+import { dayView, typeView, statsHtml, legendHtml, rainbow } from "./view.js?v=2";
+import { exportHtml } from "./export.js?v=2";
 
 let view = "edit";          // "edit" | "day" | "type"
 
@@ -38,7 +38,7 @@ function run() {
   for (const b of document.querySelectorAll("[data-view], #export")) b.disabled = true;
 
   if (worker) worker.terminate();
-  worker = new Worker("./worker.js", { type: "module" });
+  worker = new Worker("./worker.js?v=2", { type: "module" });
   worker.onmessage = (e) => {
     const d = e.data;
     if (!d.ok) {
@@ -111,8 +111,20 @@ function renderGrid() {
     host.insertAdjacentHTML("beforeend",
       view === "day" ? dayView(ctx, sched, cfg) : typeView(ctx, sched, cfg));
     host.insertAdjacentHTML("beforeend", statsHtml(ctx, result.options[showing], cfg));
+    // Cells marked editable in the pretty views open the same pin editor as the grid,
+    // so "by day" and "by person" are alternative ways to edit, not read-only pages.
+    for (const td of host.querySelectorAll("td.editable")) {
+      td.onclick = (ev) => {
+        const kind = td.dataset.edit, key = td.dataset.key;
+        const day = Number(td.dataset.day), period = td.dataset.period;
+        const current = kind === "cook"
+          ? (sched.cook[key] ? [sched.cook[key]] : [])
+          : (sched.cc[key] || []);
+        openCellEditor(ev, kind, day, kind === "cook" ? key.split("|")[1] : period, key, current);
+      };
+    }
     host.appendChild(el("p", "muted",
-      "Switch to the editable view to lock shifts or change the rules."));
+      "Click a childcare or cooking cell to pin or lock it, the same as in the editable grid."));
     return;
   }
 
