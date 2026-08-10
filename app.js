@@ -4,10 +4,10 @@
  * URL hash, so a rota you like is a link you can send.
  * ========================================================================================== */
 
-import { RULES, WEEKDAY, COLOURS, label, GROUP_BLOCK, SHAPES, buildContext, BID_VALUE } from "./model.js?v=5";
-import { defaultConfig, encode, decode } from "./config.js?v=5";
-import { dayView, typeView, statsHtml, legendHtml, rainbow, rolesOffered } from "./view.js?v=5";
-import { exportHtml } from "./export.js?v=5";
+import { RULES, WEEKDAY, COLOURS, label, GROUP_BLOCK, SHAPES, buildContext, BID_VALUE } from "./model.js?v=6";
+import { defaultConfig, encode, decode } from "./config.js?v=6";
+import { dayView, typeView, statsHtml, legendHtml, rainbow, rolesOffered } from "./view.js?v=6";
+import { exportHtml } from "./export.js?v=6";
 
 let view = "edit";          // "edit" | "day" | "type"
 
@@ -38,7 +38,7 @@ function run() {
   for (const b of document.querySelectorAll("[data-view], #export")) b.disabled = true;
 
   if (worker) worker.terminate();
-  worker = new Worker("./worker.js?v=5", { type: "module" });
+  worker = new Worker("./worker.js?v=6", { type: "module" });
   worker.onmessage = (e) => {
     const d = e.data;
     if (!d.ok) {
@@ -57,12 +57,22 @@ function run() {
       $("#status").textContent = `Testing which rule to blame… ${d.done}/${d.total}`;
       return;
     }
+    if (d.phase === "partial") {
+      // A usable rota is on screen already; the search keeps going and will replace it
+      // if it finds better. Everything stays clickable meanwhile.
+      result = d; showing = 0;
+      for (const b of document.querySelectorAll("[data-view], #export")) b.disabled = false;
+      render();
+      $("#status").className = "status working";
+      $("#status").textContent = `Rota found — still improving it (${d.wave}/${d.waves})…`;
+      return;
+    }
     busy = false; $("#run").disabled = false;
     for (const b of document.querySelectorAll("[data-view], #export")) b.disabled = false;
     result = d; showing = 0;
     render();
   };
-  worker.postMessage({ job: "solve", cfg, opts: { restarts: 80, iters: 600, options: 5, seed: Date.now() & 0xffff } });
+  worker.postMessage({ job: "solve", cfg, opts: { seed: Date.now() & 0xffff } });
 }
 
 /* --- rendering --------------------------------------------------------------------------- */
@@ -79,16 +89,15 @@ function saveHash() {
   if (h) history.replaceState(null, "", "#" + h);
 }
 
+/* One rota at a time now, so there is no option list - but "Re-run" gives a different
+ * one, since each run is seeded afresh. The box is left in place for the score readout. */
 function optionList() {
   const box = $("#options");
   box.innerHTML = "";
   if (!result || !result.options.length) return;
-  result.options.forEach((o, i) => {
-    const b = el("button", "opt" + (i === showing ? " on" : ""), `Option ${i + 1}`);
-    b.title = `score ${o.total.toFixed(1)}`;
-    b.onclick = () => { showing = i; render(); };
-    box.appendChild(b);
-  });
+  const o = result.options[0];
+  const tag = el("span", "muted small", `Fit score ${o.total.toFixed(1)} — press Re-run for a different rota.`);
+  box.appendChild(tag);
 }
 
 /* ---- the rota grid, with click-to-lock --------------------------------------------------- */
@@ -129,7 +138,7 @@ function renderGrid() {
       };
     }
     host.appendChild(el("p", "muted", view === "type"
-      ? "Click any cell to set what that person is doing — childcare, cooking, Misc or free. The choice is pinned, and re-running works around it."
+      ? "Click any cell to set what that person is doing — childcare, cooking, Misc, free, or away if their travel changes. The choice is kept, and re-running works around it."
       : "Click a childcare or cooking cell to pin or lock it, the same as in the editable grid."));
     return;
   }
@@ -254,14 +263,17 @@ function openRolePicker(ev, who, day, period, currentRole) {
   pop.appendChild(el("div", "pophead", `${label(who)} · ${WEEKDAY[day]} ${day} · ${per}`));
 
   const offered = rolesOffered(ctx, day, period, who);
-  if (offered.length === 1 && offered[0] === "All in") {
+  if (offered[0] === "All in") {
     pop.appendChild(el("div", "pophint",
-      "The 19-22 block takes everyone present, so there is nothing to choose here."));
+      "The 19-22 block takes everyone present, so the only choice here is whether they are here at all."));
+  }
+  if (currentRole === "Away") {
+    pop.appendChild(el("div", "pophint",
+      "Currently away. Pick anything else to mark them present for this block."));
   }
 
   for (const role of offered) {
     const b = el("button", "popbtn" + (role === currentRole ? " on" : ""), role);
-    if (offered.length === 1) b.disabled = true;
     b.onclick = () => { setRole(who, day, period, role); closePop(); render(); run(); };
     pop.appendChild(b);
   }
@@ -306,6 +318,21 @@ function setRole(who, day, period, role) {
     cfg.pins[key] = cfg.pins[key] || {};
     cfg.pins[key][list] = [...new Set([...(cfg.pins[key][list] || []), who])];
   };
+
+  const ovKey = `${who}|${day}|${period}`;
+
+  if (role === "Away") {
+    // Absent for this block. Recorded as an override rather than as a pin, because it is
+    // a fact about where someone is, not an instruction to the scheduler.
+    cfg.presenceOverrides[ovKey] = "away";
+    if (cfg.soberRota[day] === who) delete cfg.soberRota[day];
+    return;
+  }
+
+  // Any other choice implies they are here - drop an "away" override if one is in force,
+  // and record "here" so an arrive/leave rule does not immediately mark them absent again.
+  if (cfg.presenceOverrides[ovKey] === "away") delete cfg.presenceOverrides[ovKey];
+  if (!ctx.present(who, day, period)) cfg.presenceOverrides[ovKey] = "here";
 
   if (role === "Childcare") add(ccKey, "must");
   else if (role === "Cooking" && spanFor) add(`${day}|${spanFor[0]}`, "must");
@@ -445,14 +472,7 @@ function renderDiagnostics() {
 
   if (result.feasible) {
     $("#status").className = "status good";
-    $("#status").textContent = `${result.options.length} legal rota${result.options.length === 1 ? "" : "s"} found.`;
-    if (result.options.length === 1) {
-      const w = el("div", "warn");
-      w.appendChild(el("strong", null, "Only one legal rota. "));
-      w.appendChild(document.createTextNode(
-        "Every degree of freedom is used up — the next request you add will probably make the week impossible."));
-      host.appendChild(w);
-    }
+    $("#status").textContent = "Legal rota found.";
     return;
   }
 

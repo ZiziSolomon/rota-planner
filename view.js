@@ -11,7 +11,7 @@
  *   - two-tone diagonal stripes for each couple's bar
  * ========================================================================================== */
 
-import { COLOURS, WEEKDAY, GROUP_BLOCK, SHAPES, label, BID_VALUE } from "./model.js?v=5";
+import { COLOURS, WEEKDAY, GROUP_BLOCK, SHAPES, label, BID_VALUE } from "./model.js?v=6";
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -82,8 +82,8 @@ export function roleOf(ctx, sched, a, d, p) {
  * cooking span actually runs; Misc only when the Misc rule is switched on; the group
  * block takes everyone, so there is nothing to choose there. */
 export function rolesOffered(ctx, d, p, who) {
-  if (p === "night") return ["Sober", "Free"];
-  if (p === GROUP_BLOCK) return ["All in"];
+  if (p === "night") return ["Sober", "Free", "Away"];
+  if (p === GROUP_BLOCK) return ["All in", "Away"];
   const out = ["Childcare"];
   const cooks = ctx.cooksFor(d);
   const span = Object.entries(ctx.cookSpans).find(([s, bs]) => bs.includes(p) && cooks.includes(s));
@@ -97,6 +97,7 @@ export function rolesOffered(ctx, d, p, who) {
   }
   if (ctx.ruleOn.Misc) out.push("Misc");
   out.push("Free");
+  out.push("Away");
   return out;
 }
 
@@ -212,9 +213,13 @@ export function typeView(ctx, sched, cfg) {
       cells.push(`<th>${esc(shape.labels[p] || p)}</th>`);
       for (const a of order) {
         // In this view a cell IS a person at a time, so clicking it sets what that person
-        // is doing then - not who else is in the shift. Away cells are not editable: being
-        // absent is a fact about the holiday, not a rota choice.
-        if (!ctx.present(a, d, p)) { cells.push(`<td class="away">away</td>`); continue; }
+        // is doing then. Away is editable too: travel plans change, and marking someone
+        // present or absent for a block should not mean editing their itinerary by hand.
+        if (!ctx.present(a, d, p)) {
+          cells.push(`<td class="away editable" data-who="${a}" data-day="${d}"` +
+                     ` data-period="${p}" data-role="Away">away</td>`);
+          continue;
+        }
         const role = roleOf(ctx, sched, a, d, p);
         const cls = role === "Free" ? "free" : "cell";
         const style = role === "Free" ? "" : ` style="${swatch(a)}"`;

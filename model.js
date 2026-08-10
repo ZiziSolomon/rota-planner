@@ -307,6 +307,13 @@ export function buildContext(cfg) {
   }
 
   function present(adult, day, period) {
+    /* Explicit per-shift overrides win over the arrive/leave rules. Travel plans change,
+     * and marking one block away should not mean rewriting someone's whole itinerary -
+     * so a click on a single cell is recorded here rather than folded into leaveHour. */
+    const ov = (cfg.presenceOverrides || {})[`${adult}|${day}|${period}`];
+    if (ov === "away") return false;
+    if (ov === "here") return true;
+
     const pr = cfg.presence[adult];
     if (!pr) return true;
     if (pr.absentDays && pr.absentDays.includes(day)) return false;

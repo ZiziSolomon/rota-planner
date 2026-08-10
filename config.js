@@ -6,7 +6,7 @@
  * no storage, nothing to log in to.
  * ========================================================================================== */
 
-import { RULES, DEFAULT_VARS, DEFAULT_BIDS, DEFAULT_COUPLES, ADULTS_ALL } from "./model.js?v=5";
+import { RULES, DEFAULT_VARS, DEFAULT_BIDS, DEFAULT_COUPLES, ADULTS_ALL } from "./model.js?v=6";
 
 /* The full group: the six-person setup, everybody present.                     R1, R2 */
 export function defaultConfig() {
@@ -26,6 +26,9 @@ export function defaultConfig() {
     presence: {
       P6: { leaveDay: 15, leaveHour: 13, absentDays: [16] },
     },
+    /* Per-shift presence overrides, "who|day|period" -> "away" | "here". Set by clicking
+     * a cell in the by-person view; these beat the arrive/leave rules above. */
+    presenceOverrides: {},
     /* Freetime already committed elsewhere, counting half.                          R20 */
     halfValue: [["P1", 12], ["P1", 13], ["P1", 14], ["P2", 13]],
     /* The Sober rota as a per-night table. Ad is skipped on her free day and on the
@@ -62,6 +65,7 @@ export function decode(str) {
     const base = defaultConfig();
     return { ...base, ...got, vars: { ...base.vars, ...(got.vars || {}) },
              ruleOn: { ...base.ruleOn, ...(got.ruleOn || {}) },
-             locks: { cc: {}, cook: {}, misc: {}, ...(got.locks || {}) } };
+             locks: { cc: {}, cook: {}, misc: {}, ...(got.locks || {}) },
+             presenceOverrides: { ...(got.presenceOverrides || {}) } };
   } catch { return null; }
 }
