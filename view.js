@@ -11,7 +11,7 @@
  *   - two-tone diagonal stripes for each couple's bar
  * ========================================================================================== */
 
-import { COLOURS, WEEKDAY, GROUP_BLOCK, SHAPES, label, BID_VALUE } from "./model.js?v=2";
+import { COLOURS, WEEKDAY, GROUP_BLOCK, SHAPES, label, BID_VALUE } from "./model.js?v=4";
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

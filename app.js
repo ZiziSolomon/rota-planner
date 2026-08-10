@@ -4,10 +4,10 @@
  * URL hash, so a rota you like is a link you can send.
  * ========================================================================================== */
 
-import { RULES, WEEKDAY, COLOURS, label, GROUP_BLOCK, SHAPES, buildContext, BID_VALUE } from "./model.js?v=2";
-import { defaultConfig, encode, decode } from "./config.js?v=2";
-import { dayView, typeView, statsHtml, legendHtml, rainbow } from "./view.js?v=2";
-import { exportHtml } from "./export.js?v=2";
+import { RULES, WEEKDAY, COLOURS, label, GROUP_BLOCK, SHAPES, buildContext, BID_VALUE } from "./model.js?v=4";
+import { defaultConfig, encode, decode } from "./config.js?v=4";
+import { dayView, typeView, statsHtml, legendHtml, rainbow } from "./view.js?v=4";
+import { exportHtml } from "./export.js?v=4";
 
 let view = "edit";          // "edit" | "day" | "type"
 
@@ -38,7 +38,7 @@ function run() {
   for (const b of document.querySelectorAll("[data-view], #export")) b.disabled = true;
 
   if (worker) worker.terminate();
-  worker = new Worker("./worker.js?v=2", { type: "module" });
+  worker = new Worker("./worker.js?v=4", { type: "module" });
   worker.onmessage = (e) => {
     const d = e.data;
     if (!d.ok) {

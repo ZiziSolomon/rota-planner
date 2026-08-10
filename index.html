@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Shift rota planner</title>
+<title>Shift rota planner v4</title>
 <style>
 :root {
   --bg: #faf8f5; --fg: #1e1b18; --muted: #6b625a; --line: #e2dbd2;
@@ -29,6 +29,10 @@ body {
 }
 header { padding: 20px 24px 8px; border-bottom: 1px solid var(--line); }
 h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: -0.01em; }
+/* Version badge: if this is not the newest number, you are on a cached copy. */
+.ver { font-size: 12px; font-weight: 700; vertical-align: middle; margin-left: 4px;
+       padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff;
+       font-variant-numeric: tabular-nums; }
 .sub { margin: 0; color: var(--muted); font-size: 13px; }
 main { display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 24px; padding: 20px 24px 60px; align-items: start; }
 @media (max-width: 1000px) { main { grid-template-columns: minmax(0,1fr); } }
@@ -171,7 +175,9 @@ table.mini td.num { text-align: right; font-variant-numeric: tabular-nums; font-
 </head>
 <body>
 <header>
-  <h1>Shift rota planner</h1>
+  <!-- The version is bumped with every push. If the number here is not the newest, you are
+       looking at a cached copy - hard-reload with Ctrl+Shift+R. -->
+  <h1>Shift rota planner <span class="ver">v4</span></h1>
   <p class="sub">A six-day childcare and cooking rota for six people, shown by initial.
      The solver runs entirely in your browser — nothing is sent anywhere, and the whole
      setup lives in the page URL, so a rota you like is a link you can keep.</p>
@@ -206,6 +212,6 @@ table.mini td.num { text-align: right; font-variant-numeric: tabular-nums; font-
 <!-- ?v is bumped whenever the JS changes. Static file servers (and file:// itself) send no
      cache headers, so ES modules otherwise stay cached across reloads and you keep seeing
      an old page after an update. -->
-<script type="module" src="./app.js?v=2"></script>
+<script type="module" src="./app.js?v=4"></script>
 </body>
 </html>
