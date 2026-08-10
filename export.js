@@ -8,8 +8,8 @@
  * eat a cartridge.
  * ========================================================================================== */
 
-import { dayView, typeView, statsHtml, legendHtml } from "./view.js?v=4";
-import { WEEKDAY } from "./model.js?v=4";
+import { dayView, typeView, statsHtml, legendHtml } from "./view.js?v=5";
+import { WEEKDAY } from "./model.js?v=5";
 
 const PRINT_CSS = `
 :root { --ink:#1b1b1f; --muted:#6b6b76; --line:#e3e3e8; --paper:#fff; --bg:#faf9fb; }
@@ -87,7 +87,7 @@ const inert = (html) => html
 
 /* Bumped with every push, and shown on the page and in this export, so a printed rota can
  * be matched back to the version of the planner that produced it. */
-export const VERSION = "v4";
+export const VERSION = "v5";
 
 export function exportHtml(ctx, opt, cfg, meta = {}) {
   const when = new Date().toLocaleDateString("en-GB",

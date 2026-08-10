@@ -1,7 +1,7 @@
 /* Runs the search off the main thread so the page stays responsive while it works. */
-import { buildContext } from "./model.js?v=4";
-import { solve } from "./solver.js?v=4";
-import { diagnose, slack } from "./diagnose.js?v=4";
+import { buildContext } from "./model.js?v=5";
+import { solve } from "./solver.js?v=5";
+import { diagnose, slack } from "./diagnose.js?v=5";
 
 self.onmessage = (e) => {
   const { job, cfg, opts } = e.data;

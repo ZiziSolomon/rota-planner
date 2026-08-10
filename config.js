@@ -6,7 +6,7 @@
  * no storage, nothing to log in to.
  * ========================================================================================== */
 
-import { RULES, DEFAULT_VARS, DEFAULT_BIDS, DEFAULT_COUPLES, ADULTS_ALL } from "./model.js?v=4";
+import { RULES, DEFAULT_VARS, DEFAULT_BIDS, DEFAULT_COUPLES, ADULTS_ALL } from "./model.js?v=5";
 
 /* The full group: the six-person setup, everybody present.                     R1, R2 */
 export function defaultConfig() {

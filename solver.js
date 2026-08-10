@@ -14,7 +14,7 @@
  * rota this size that is consistently as good as, or within a point of, the Python result.
  * ========================================================================================== */
 
-import { GROUP_BLOCK, score, hardConstraints } from "./model.js?v=4";
+import { GROUP_BLOCK, score, hardConstraints } from "./model.js?v=5";
 
 function mulberry32(seed) {
   return function () {
@@ -42,10 +42,12 @@ function candidates(ctx, hard, kind, d, p, span) {
     if (hard.mustFree.some(([x, y, z]) => x === a && y === d && z === p)) return false;
     return true;
   }).filter((a) => {
-    // "only these" pins narrow the candidate pool directly, so the search never wastes
-    // time building rotas it will then have to reject.
+    // "only these" narrows the pool directly and "not" removes people outright, so the
+    // search never wastes time building rotas it would then have to reject.
     const pin = (ctx.cfg.pins || {})[kind === "cook" ? `${d}|${span}` : `${d}|${p}`];
-    if (pin && pin.only && pin.only.length) return pin.only.includes(a);
+    if (!pin) return true;
+    if (pin.not && pin.not.includes(a)) return false;
+    if (pin.only && pin.only.length) return pin.only.includes(a);
     return true;
   });
 }
@@ -131,6 +133,8 @@ function construct(ctx, hard, rng, locks) {
       if (!ctx.rolesFor(d, p).includes("Misc")) continue;
       const key = `${d}|${p}`;
       if (locks.misc && locks.misc[key]) { s.misc[key] = locks.misc[key]; continue; }
+      const miscPin = (cfg.pins || {})[`${d}|${p}|misc`] || {};
+      if ((miscPin.must || []).length) { s.misc[key] = [miscPin.must[0]]; continue; }
       let cands = candidates(ctx, hard, "cc", d, p)
         .filter((a) => !(s.cc[key] || []).includes(a))
         .filter((a) => !Object.entries(ctx.cookSpans).some(([span, bs]) => bs.includes(p) && s.cook[`${d}|${span}`] === a));
@@ -233,12 +237,31 @@ export function violations(ctx, hard, s) {
   }
 
   // pins from the grid
+  /* Pin keys come in three shapes, and each is checked against a different part of the
+   * schedule: "day|block" is childcare, "day|CookAM|CookPM" is a cooking span, and
+   * "day|block|misc" is the Misc role. Checking them all against cc silently passed
+   * cooking and Misc pins that were not actually honoured. */
   for (const [key, who] of Object.entries(ctx.cfg.pins || {})) {
-    const [ds, p] = key.split("|");
-    const d = Number(ds);
-    const held = s.cc[`${d}|${p}`] || [];
-    const where = `the ${d}th ${ctx.labels[p] || p}`;
+    const parts = key.split("|");
+    const d = Number(parts[0]), p = parts[1];
+    const isMisc = parts[2] === "misc";
+    const isCook = p === "CookAM" || p === "CookPM";
+
+    let held, where;
+    if (isMisc) {
+      held = s.misc[`${d}|${p}`] || [];
+      where = `Misc on the ${d}th ${ctx.labels[p] || p}`;
+    } else if (isCook) {
+      const c = s.cook[`${d}|${p}`];
+      held = c ? [c] : [];
+      where = `${p === "CookAM" ? "cooking 07-13" : "cooking 13-19"} on the ${d}th`;
+    } else {
+      held = s.cc[`${d}|${p}`] || [];
+      where = `the ${d}th ${ctx.labels[p] || p}`;
+    }
+
     for (const a of (who.must || [])) if (!held.includes(a)) bad.push(`Pin: ${a} should hold ${where}`);
+    for (const a of (who.not || [])) if (held.includes(a)) bad.push(`Pin: ${a} should not hold ${where}`);
     if (who.only && who.only.length) {
       for (const a of held) if (!who.only.includes(a)) bad.push(`Pin: ${where} is restricted to ${who.only.join("/")}`);
     }

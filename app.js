@@ -4,10 +4,10 @@
  * URL hash, so a rota you like is a link you can send.
  * ========================================================================================== */
 
-import { RULES, WEEKDAY, COLOURS, label, GROUP_BLOCK, SHAPES, buildContext, BID_VALUE } from "./model.js?v=4";
-import { defaultConfig, encode, decode } from "./config.js?v=4";
-import { dayView, typeView, statsHtml, legendHtml, rainbow } from "./view.js?v=4";
-import { exportHtml } from "./export.js?v=4";
+import { RULES, WEEKDAY, COLOURS, label, GROUP_BLOCK, SHAPES, buildContext, BID_VALUE } from "./model.js?v=5";
+import { defaultConfig, encode, decode } from "./config.js?v=5";
+import { dayView, typeView, statsHtml, legendHtml, rainbow, rolesOffered } from "./view.js?v=5";
+import { exportHtml } from "./export.js?v=5";
 
 let view = "edit";          // "edit" | "day" | "type"
 
@@ -38,7 +38,7 @@ function run() {
   for (const b of document.querySelectorAll("[data-view], #export")) b.disabled = true;
 
   if (worker) worker.terminate();
-  worker = new Worker("./worker.js?v=4", { type: "module" });
+  worker = new Worker("./worker.js?v=5", { type: "module" });
   worker.onmessage = (e) => {
     const d = e.data;
     if (!d.ok) {
@@ -111,20 +111,26 @@ function renderGrid() {
     host.insertAdjacentHTML("beforeend",
       view === "day" ? dayView(ctx, sched, cfg) : typeView(ctx, sched, cfg));
     host.insertAdjacentHTML("beforeend", statsHtml(ctx, result.options[showing], cfg));
-    // Cells marked editable in the pretty views open the same pin editor as the grid,
-    // so "by day" and "by person" are alternative ways to edit, not read-only pages.
     for (const td of host.querySelectorAll("td.editable")) {
       td.onclick = (ev) => {
-        const kind = td.dataset.edit, key = td.dataset.key;
-        const day = Number(td.dataset.day), period = td.dataset.period;
-        const current = kind === "cook"
-          ? (sched.cook[key] ? [sched.cook[key]] : [])
-          : (sched.cc[key] || []);
-        openCellEditor(ev, kind, day, kind === "cook" ? key.split("|")[1] : period, key, current);
+        if (td.dataset.who) {
+          // By-person view: the cell is a person at a time, so pick what they are doing.
+          openRolePicker(ev, td.dataset.who, Number(td.dataset.day),
+                         td.dataset.period, td.dataset.role);
+        } else {
+          // By-day view: the cell is a shift, so pick who is in it.
+          const kind = td.dataset.edit, key = td.dataset.key;
+          const day = Number(td.dataset.day), period = td.dataset.period;
+          const current = kind === "cook"
+            ? (sched.cook[key] ? [sched.cook[key]] : [])
+            : (sched.cc[key] || []);
+          openCellEditor(ev, kind, day, kind === "cook" ? key.split("|")[1] : period, key, current);
+        }
       };
     }
-    host.appendChild(el("p", "muted",
-      "Click a childcare or cooking cell to pin or lock it, the same as in the editable grid."));
+    host.appendChild(el("p", "muted", view === "type"
+      ? "Click any cell to set what that person is doing — childcare, cooking, Misc or free. The choice is pinned, and re-running works around it."
+      : "Click a childcare or cooking cell to pin or lock it, the same as in the editable grid."));
     return;
   }
 
@@ -233,6 +239,93 @@ function onDocClick(e) {
   if (openPop && !openPop.contains(e.target)) closePop();
 }
 
+/* ---- the role picker (by-person view) ----------------------------------------------------
+ * A cell there is one person at one time, so the question is "what are they doing?".
+ * Choosing an answer writes it as a PIN, which the search then has to work around - the
+ * same mechanism the grid uses, just expressed from the person's side rather than the
+ * shift's. Picking Free records a negative pin: this person is not in this shift. */
+function openRolePicker(ev, who, day, period, currentRole) {
+  ev.stopPropagation();
+  closePop();
+
+  const ctx = buildContext(cfg);
+  const pop = el("div", "pop");
+  const per = ctx.labels[period] || period;
+  pop.appendChild(el("div", "pophead", `${label(who)} · ${WEEKDAY[day]} ${day} · ${per}`));
+
+  const offered = rolesOffered(ctx, day, period, who);
+  if (offered.length === 1 && offered[0] === "All in") {
+    pop.appendChild(el("div", "pophint",
+      "The 19-22 block takes everyone present, so there is nothing to choose here."));
+  }
+
+  for (const role of offered) {
+    const b = el("button", "popbtn" + (role === currentRole ? " on" : ""), role);
+    if (offered.length === 1) b.disabled = true;
+    b.onclick = () => { setRole(who, day, period, role); closePop(); render(); run(); };
+    pop.appendChild(b);
+  }
+
+  const anyPin = (cfg.pins[`${day}|${period}`] || cfg.pins[`${day}|CookAM`]
+                  || cfg.pins[`${day}|CookPM`]);
+  if (anyPin) {
+    const clr = el("button", "popbtn", "Clear pins for this shift");
+    clr.onclick = () => {
+      for (const k of [`${day}|${period}`, `${day}|CookAM`, `${day}|CookPM`]) delete cfg.pins[k];
+      closePop(); render(); run();
+    };
+    pop.appendChild(clr);
+  }
+
+  document.body.appendChild(pop);
+  placePop(pop, ev.currentTarget);
+  openPop = pop;
+  setTimeout(() => document.addEventListener("click", onDocClick, true), 0);
+}
+
+/* Translate "this person does X here" into pins the solver understands. */
+function setRole(who, day, period, role) {
+  const ctx = buildContext(cfg);
+  const ccKey = `${day}|${period}`;
+  const spanFor = Object.entries(ctx.cookSpans)
+    .find(([s, bs]) => bs.includes(period) && ctx.cooksFor(day).includes(s));
+
+  const drop = (key, list) => {
+    if (!cfg.pins[key]) return;
+    cfg.pins[key][list] = (cfg.pins[key][list] || []).filter((x) => x !== who);
+    if (!(cfg.pins[key].must || []).length && !(cfg.pins[key].only || []).length
+        && !(cfg.pins[key].not || []).length) delete cfg.pins[key];
+  };
+
+  // Clear any previous instruction about this person in this shift, then set the new one.
+  drop(ccKey, "must"); drop(ccKey, "not");
+  if (spanFor) { drop(`${day}|${spanFor[0]}`, "must"); drop(`${day}|${spanFor[0]}`, "not"); }
+  if (cfg.pins[`${day}|${period}|misc`]) drop(`${day}|${period}|misc`, "must");
+
+  const add = (key, list) => {
+    cfg.pins[key] = cfg.pins[key] || {};
+    cfg.pins[key][list] = [...new Set([...(cfg.pins[key][list] || []), who])];
+  };
+
+  if (role === "Childcare") add(ccKey, "must");
+  else if (role === "Cooking" && spanFor) add(`${day}|${spanFor[0]}`, "must");
+  else if (role === "Misc") add(`${day}|${period}|misc`, "must");
+  else if (role === "Free") {
+    // Not in childcare, and not on the cooking span covering these hours.
+    add(ccKey, "not");
+    if (spanFor) add(`${day}|${spanFor[0]}`, "not");
+  } else if (role === "Sober") {
+    cfg.soberRota[day] = who;
+  }
+}
+
+function placePop(pop, anchor) {
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.max(6, Math.min(window.innerWidth - pop.offsetWidth - 10,
+                                        r.left + window.scrollX)) + "px";
+  pop.style.top = (r.bottom + window.scrollY + 5) + "px";
+}
+
 function openCellEditor(ev, kind, day, period, key, current) {
   ev.stopPropagation();
   closePop();
@@ -278,9 +371,7 @@ function openCellEditor(ev, kind, day, period, key, current) {
   }
 
   document.body.appendChild(pop);
-  const r = ev.currentTarget.getBoundingClientRect();
-  pop.style.left = Math.min(window.innerWidth - pop.offsetWidth - 10, r.left + window.scrollX) + "px";
-  pop.style.top = (r.bottom + window.scrollY + 5) + "px";
+  placePop(pop, ev.currentTarget);
   openPop = pop;
   setTimeout(() => document.addEventListener("click", onDocClick, true), 0);
 }

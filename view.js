@@ -11,7 +11,7 @@
  *   - two-tone diagonal stripes for each couple's bar
  * ========================================================================================== */
 
-import { COLOURS, WEEKDAY, GROUP_BLOCK, SHAPES, label, BID_VALUE } from "./model.js?v=4";
+import { COLOURS, WEEKDAY, GROUP_BLOCK, SHAPES, label, BID_VALUE } from "./model.js?v=5";
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -62,6 +62,42 @@ function cookSpanStarting(ctx, sched, day, period) {
     }
   }
   return null;
+}
+
+/* What one person is doing in one shift. "Away" is handled by the caller, since it is not
+ * a role anyone can be assigned. */
+export function roleOf(ctx, sched, a, d, p) {
+  if (p === "night") return sched.sober[d] === a ? "Sober" : "Free";
+  for (const [span, bs] of Object.entries(ctx.cookSpans)) {
+    if (bs.includes(p) && sched.cook[`${d}|${span}`] === a) return "Cooking";
+  }
+  if ((sched.misc[`${d}|${p}`] || []).includes(a)) return "Misc";
+  if ((sched.cc[`${d}|${p}`] || []).includes(a)) {
+    return p === GROUP_BLOCK ? "All in" : "Childcare";
+  }
+  return "Free";
+}
+
+/* The roles a person can be switched to in a given shift. Cooking only exists where a
+ * cooking span actually runs; Misc only when the Misc rule is switched on; the group
+ * block takes everyone, so there is nothing to choose there. */
+export function rolesOffered(ctx, d, p, who) {
+  if (p === "night") return ["Sober", "Free"];
+  if (p === GROUP_BLOCK) return ["All in"];
+  const out = ["Childcare"];
+  const cooks = ctx.cooksFor(d);
+  const span = Object.entries(ctx.cookSpans).find(([s, bs]) => bs.includes(p) && cooks.includes(s));
+  if (span) {
+    // Don't offer Cooking where a rule has already decided who cooks - R27 fixes the
+    // evening rota, so offering it there only produces a contradiction the diagnostics
+    // then have to explain.
+    const fixed = ctx.ruleOn.R27 && span[0] === "CookPM"
+      && (ctx.cfg.eveningRota || []).find(([, dd]) => dd === d);
+    if (!fixed || (who && fixed[0] === who)) out.push("Cooking");
+  }
+  if (ctx.ruleOn.Misc) out.push("Misc");
+  out.push("Free");
+  return out;
 }
 
 export function legendHtml(adults) {
@@ -175,24 +211,15 @@ export function typeView(ctx, sched, cfg) {
       if (first) cells.push(`<th class="day" rowspan="${live.length}" scope="rowgroup">${WEEKDAY[d]}<br><span class="daynum">${d}</span></th>`);
       cells.push(`<th>${esc(shape.labels[p] || p)}</th>`);
       for (const a of order) {
+        // In this view a cell IS a person at a time, so clicking it sets what that person
+        // is doing then - not who else is in the shift. Away cells are not editable: being
+        // absent is a fact about the holiday, not a rota choice.
         if (!ctx.present(a, d, p)) { cells.push(`<td class="away">away</td>`); continue; }
-        let role = null, kind = null, key = `${d}|${p}`;
-        if ((sched.cc[`${d}|${p}`] || []).includes(a)) {
-          role = p === GROUP_BLOCK ? "All in" : "Childcare";
-          if (p !== GROUP_BLOCK) kind = "cc";
-        }
-        for (const [span, bs] of Object.entries(ctx.cookSpans)) {
-          if (bs.includes(p) && sched.cook[`${d}|${span}`] === a) {
-            role = "Cooking"; kind = "cook"; key = `${d}|${span}`;
-          }
-        }
-        if (p === "night" && sched.sober[d] === a) role = "Sober";
-        // Childcare and cooking cells stay editable here, exactly as in the grid view -
-        // the by-person table is a different way of reading the rota, not a read-only one.
-        const editable = kind ? ` data-edit="${kind}" data-key="${key}" data-day="${d}" data-period="${p}"` : "";
-        cells.push(role
-          ? `<td class="cell${kind ? " editable" : ""}" style="${swatch(a)}"${editable}>${esc(role)}</td>`
-          : `<td class="free">free</td>`);
+        const role = roleOf(ctx, sched, a, d, p);
+        const cls = role === "Free" ? "free" : "cell";
+        const style = role === "Free" ? "" : ` style="${swatch(a)}"`;
+        cells.push(`<td class="${cls} editable" data-who="${a}" data-day="${d}"` +
+                   ` data-period="${p}" data-role="${role}"${style}>${esc(role)}</td>`);
       }
       out.push(`<tr${first ? ' class="day-start"' : ""}>${cells.join("")}</tr>`);
       first = false;

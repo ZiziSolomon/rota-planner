@@ -110,7 +110,7 @@ export const RULES = [
 
   // ---- the Misc role, dropped when the group shrank  -------------------------------------
   { id: "Misc", kind: "hard", on: false, era: "big",
-    text: "The Misc role exists - one adult per block, on top of childcare.",
+    text: "Include Misc — one adult per block on Misc, on top of childcare.",
     note: "Dropped when the group got smaller: with four people, one day needed three roles filled by two and was infeasible. Switch on only with a large group." },
 
   { id: "R17", kind: "hard", on: false, era: "big", needs: "Misc",
